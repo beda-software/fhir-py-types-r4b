@@ -1,0 +1,19 @@
+[project]
+name = "fhirpy_types_r4b"
+version = "0.0.1"
+authors = [{ name = "beda.software", email = "fhirpy@beda.software" }]
+description = "FHIR R4B pydantic models"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["pydantic >= 1.10.7, < 2"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/beda-software/fhir-py-types-r4b"
+
