@@ -1,5 +1,4 @@
 from typing import List as List_, Optional as Optional_, Literal as Literal_, Annotated as Annotated_
-from datetime import time, date, datetime
 from pydantic import BaseModel as BaseModel
 from pydantic import Field, Extra
 
@@ -46,13 +45,13 @@ code = str
 'A string which has at least one character and no leading or trailing whitespace and where there is no whitespace other than single spaces in the contents'
 
 
-date = date
+date = str
 
 
 'A date or partial date (e.g. just year or year + month). There is no time zone. The format is a union of the schema types gYear, gYearMonth and date.  Dates SHALL be valid dates.'
 
 
-dateTime = datetime
+dateTime = str
 
 
 'A date, date-time or partial date (e.g. just year or year + month).  If hours and minutes are specified, a time zone SHALL be populated. The format is a union of the schema types gYear, gYearMonth, date and dateTime. Seconds must be provided due to schema type constraints but may be zero-filled and may be ignored.                 Dates SHALL be valid dates.'
@@ -70,7 +69,7 @@ id = str
 'Any combination of letters, numerals, "-" and ".", with a length limit of 64 characters.  (This might be an integer, an unprefixed OID, UUID or any other identifier pattern that meets these constraints.)  Ids are case-insensitive.'
 
 
-instant = datetime
+instant = str
 
 
 'An instant in time - known at least to the second'
@@ -106,7 +105,7 @@ string = str
 'A sequence of Unicode characters'
 
 
-time = time
+time = str
 
 
 'A time during the day, with no date specified'
