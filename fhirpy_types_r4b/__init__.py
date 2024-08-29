@@ -61,7 +61,7 @@ dateTime = str
 'A date, date-time or partial date (e.g. just year or year + month).  If hours and minutes are specified, a time zone SHALL be populated. The format is a union of the schema types gYear, gYearMonth, date and dateTime. Seconds must be provided due to schema type constraints but may be zero-filled and may be ignored.                 Dates SHALL be valid dates.'
 
 
-decimal = int
+decimal = float
 
 
 'A rational number with implicit precision'
@@ -97,7 +97,7 @@ oid = str
 'An OID represented as a URI'
 
 
-positiveInt = str
+positiveInt = int
 
 
 'An integer with a value that is positive (e.g. >0)'
@@ -115,7 +115,7 @@ time = str
 'A time during the day, with no date specified'
 
 
-unsignedInt = str
+unsignedInt = int
 
 
 'An integer with a value that is not negative (e.g. >= 0)'
