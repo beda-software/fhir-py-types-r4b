@@ -1,27 +1,72 @@
-from typing import (
-    List as List_,
-    Optional as Optional_,
-    Literal as Literal_,
-    Annotated as Annotated_,
-    get_origin,
-    get_args,
-)
-from pydantic import BaseModel, Field, Extra, validator, root_validator
+from abc import ABC
 from inspect import isclass
+from types import UnionType
+from typing import (
+    Any,
+    Union,
+    get_args,
+    get_origin,
+    Annotated as Annotated_,
+    List as List_,
+    Literal as Literal_,
+    Optional as Optional_,
+)
+
+from pydantic import BaseModel, Extra, Field, root_validator, validator
 
 
-class PrimitiveBaseModel(BaseModel, extra=Extra.forbid, validate_assignment=True):
+class PrimitiveBaseModel(BaseModel, ABC, extra=Extra.forbid, validate_assignment=True):
+    value: Any
+
     def dict(self, *args, **kwargs):
         result = super().dict(*args, **kwargs)
         result.pop("value", None)
         return result
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, PrimitiveBaseModel):
+            return self.value == other.value
+        return self.value == other
+
+    def __lt__(self, other) -> bool:
+        if isinstance(other, PrimitiveBaseModel):
+            return self.value < other.value
+        return self.value < other
+
+    def __le__(self, other) -> bool:
+        if isinstance(other, PrimitiveBaseModel):
+            return self.value <= other.value
+        return self.value <= other
+
+    def __gt__(self, other) -> bool:
+        if isinstance(other, PrimitiveBaseModel):
+            return self.value > other.value
+        return self.value > other
+
+    def __ge__(self, other) -> bool:
+        if isinstance(other, PrimitiveBaseModel):
+            return self.value >= other.value
+        return self.value >= other
+
+    def __str__(self):
+        return str(self.value)
+
+    def __float__(self):
+        return float(self.value)
+
+    def __int__(self):
+        return int(self.value)
+
+    def __bool__(self):
+        return bool(self.value)
 
 
 class NonPrimitiveBaseModel(BaseModel, extra=Extra.forbid, validate_assignment=True):
     @validator("*", pre=True, each_item=True)
     @classmethod
     def validate_all(cls, value, field):
-        cls_type = field.outer_type_
+        cls_type, _isarray = get_primitive_cls_type(field.outer_type_)
+
         if (
             isclass(cls_type)
             and issubclass(cls_type, PrimitiveBaseModel)
@@ -35,12 +80,7 @@ class NonPrimitiveBaseModel(BaseModel, extra=Extra.forbid, validate_assignment=T
     def validate_root(cls, values):
         for field_name, field in cls.__fields__.items():
             _field_name = f"_{field_name}"
-            cls_type = field.outer_type_
-            isarray = False
-            if get_origin(cls_type) is list:
-                isarray = True
-                cls_type = get_args(cls_type)[0]
-
+            cls_type, isarray = get_primitive_cls_type(field.outer_type_)
             if (
                 isclass(cls_type)
                 and issubclass(cls_type, PrimitiveBaseModel)
@@ -90,18 +130,29 @@ class NonPrimitiveBaseModel(BaseModel, extra=Extra.forbid, validate_assignment=T
                     result[field_name] = field_value.value
                     result[_field_name] = nullable(field_value.dict(*args, **kwargs))
 
-                if result[field_name] is None:
-                    result.pop(field_name, None)
-                if result[_field_name] is None:
-                    result.pop(_field_name, None)
+                    if result[field_name] is None:
+                        result.pop(field_name, None)
+                    if result[_field_name] is None:
+                        result.pop(_field_name, None)
         return result
+
+
+def get_primitive_cls_type(cls_type):
+    isarray = False
+    if get_origin(cls_type) is list:
+        isarray = True
+        cls_type = get_args(cls_type)[0]
+
+    if get_origin(cls_type) is UnionType or get_origin(cls_type) is Union:
+        cls_type = get_args(cls_type)[0]
+
+    return cls_type, isarray
 
 
 def nullable(d: dict):
     if not d:
         return None
     return d
-
 
 
 class Element(NonPrimitiveBaseModel):
@@ -122,7 +173,7 @@ class BackboneElement(NonPrimitiveBaseModel):
     "May be used to represent additional information that is not part of the basic definition of the element and that modifies the understanding of the element in which it is contained and/or the understanding of the containing element's descendants. Usually modifier elements provide negation or qualification. To make the use of extensions safe and manageable, there is a strict set of governance applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension. Applications processing a resource are required to check for modifier extensions.\n\nModifier extensions SHALL NOT change the meaning of any elements on Resource or DomainResource (including cannot change the meaning of modifierExtension itself)."
 
 
-class base64Binary(PrimitiveBaseModel):
+class Base64Binary(PrimitiveBaseModel):
     """A stream of bytes"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -132,7 +183,10 @@ class base64Binary(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class boolean(PrimitiveBaseModel):
+base64Binary = Base64Binary | str
+
+
+class Boolean(PrimitiveBaseModel):
     '''Value of "true" or "false"'''
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -142,7 +196,10 @@ class boolean(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class canonical(PrimitiveBaseModel):
+boolean = Boolean | bool
+
+
+class Canonical(PrimitiveBaseModel):
     """A URI that is a reference to a canonical URL on a FHIR resource"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -152,7 +209,10 @@ class canonical(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class code(PrimitiveBaseModel):
+canonical = Canonical | str
+
+
+class Code(PrimitiveBaseModel):
     """A string which has at least one character and no leading or trailing whitespace and where there is no whitespace other than single spaces in the contents"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -162,7 +222,10 @@ class code(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class date(PrimitiveBaseModel):
+code = Code | str
+
+
+class Date(PrimitiveBaseModel):
     """A date or partial date (e.g. just year or year + month). There is no time zone. The format is a union of the schema types gYear, gYearMonth and date.  Dates SHALL be valid dates."""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -172,7 +235,10 @@ class date(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class dateTime(PrimitiveBaseModel):
+date = Date | str
+
+
+class DateTime(PrimitiveBaseModel):
     """A date, date-time or partial date (e.g. just year or year + month).  If hours and minutes are specified, a time zone SHALL be populated. The format is a union of the schema types gYear, gYearMonth, date and dateTime. Seconds must be provided due to schema type constraints but may be zero-filled and may be ignored.                 Dates SHALL be valid dates."""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -182,7 +248,10 @@ class dateTime(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class decimal(PrimitiveBaseModel):
+dateTime = DateTime | str
+
+
+class Decimal(PrimitiveBaseModel):
     """A rational number with implicit precision"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -192,7 +261,10 @@ class decimal(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class id(PrimitiveBaseModel):
+decimal = Decimal | float
+
+
+class Id(PrimitiveBaseModel):
     """Any combination of letters, numerals, "-" and ".", with a length limit of 64 characters.  (This might be an integer, an unprefixed OID, UUID or any other identifier pattern that meets these constraints.)  Ids are case-insensitive."""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -202,7 +274,10 @@ class id(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class instant(PrimitiveBaseModel):
+id = Id | str
+
+
+class Instant(PrimitiveBaseModel):
     """An instant in time - known at least to the second"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -212,7 +287,10 @@ class instant(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class integer(PrimitiveBaseModel):
+instant = Instant | str
+
+
+class Integer(PrimitiveBaseModel):
     """A whole number"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -222,7 +300,10 @@ class integer(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class markdown(PrimitiveBaseModel):
+integer = Integer | int
+
+
+class Markdown(PrimitiveBaseModel):
     """A string that may contain Github Flavored Markdown syntax for optional processing by a mark down presentation engine"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -232,7 +313,10 @@ class markdown(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class oid(PrimitiveBaseModel):
+markdown = Markdown | str
+
+
+class Oid(PrimitiveBaseModel):
     """An OID represented as a URI"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -242,7 +326,10 @@ class oid(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class positiveInt(PrimitiveBaseModel):
+oid = Oid | str
+
+
+class PositiveInt(PrimitiveBaseModel):
     """An integer with a value that is positive (e.g. >0)"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -252,7 +339,10 @@ class positiveInt(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class string(PrimitiveBaseModel):
+positiveInt = PositiveInt | int
+
+
+class String(PrimitiveBaseModel):
     """A sequence of Unicode characters"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -262,7 +352,10 @@ class string(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class time(PrimitiveBaseModel):
+string = String | str
+
+
+class Time(PrimitiveBaseModel):
     """A time during the day, with no date specified"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -272,7 +365,10 @@ class time(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class unsignedInt(PrimitiveBaseModel):
+time = Time | str
+
+
+class UnsignedInt(PrimitiveBaseModel):
     """An integer with a value that is not negative (e.g. >= 0)"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -282,7 +378,10 @@ class unsignedInt(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class uri(PrimitiveBaseModel):
+unsignedInt = UnsignedInt | int
+
+
+class Uri(PrimitiveBaseModel):
     """String of characters used to identify a name or a resource"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -292,7 +391,10 @@ class uri(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class url(PrimitiveBaseModel):
+uri = Uri | str
+
+
+class Url(PrimitiveBaseModel):
     """A URI that is a literal reference"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -302,7 +404,10 @@ class url(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class uuid(PrimitiveBaseModel):
+url = Url | str
+
+
+class Uuid(PrimitiveBaseModel):
     """A UUID, represented as a URI"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -312,7 +417,10 @@ class uuid(PrimitiveBaseModel):
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
 
 
-class xhtml(PrimitiveBaseModel):
+uuid = Uuid | str
+
+
+class Xhtml(PrimitiveBaseModel):
     """XHTML"""
     id: Optional_['str'] = None
     'unique id for the element within a resource (for internal references)'
@@ -320,6 +428,9 @@ class xhtml(PrimitiveBaseModel):
     'Actual xhtml'
     extension: Optional_[List_['Extension']] = None
     'May be used to represent additional information that is not part of the basic definition of the resource. To make the use of extensions safe and manageable, there is a strict set of governance  applied to the definition and use of extensions. Though any implementer can define an extension, there is a set of requirements that SHALL be met as part of the definition of the extension.'
+
+
+xhtml = Xhtml | str
 
 
 class Address(NonPrimitiveBaseModel):
@@ -20074,64 +20185,64 @@ Element.update_forward_refs()
 BackboneElement.update_forward_refs()
 
 
-base64Binary.update_forward_refs()
+Base64Binary.update_forward_refs()
 
 
-boolean.update_forward_refs()
+Boolean.update_forward_refs()
 
 
-canonical.update_forward_refs()
+Canonical.update_forward_refs()
 
 
-code.update_forward_refs()
+Code.update_forward_refs()
 
 
-date.update_forward_refs()
+Date.update_forward_refs()
 
 
-dateTime.update_forward_refs()
+DateTime.update_forward_refs()
 
 
-decimal.update_forward_refs()
+Decimal.update_forward_refs()
 
 
-id.update_forward_refs()
+Id.update_forward_refs()
 
 
-instant.update_forward_refs()
+Instant.update_forward_refs()
 
 
-integer.update_forward_refs()
+Integer.update_forward_refs()
 
 
-markdown.update_forward_refs()
+Markdown.update_forward_refs()
 
 
-oid.update_forward_refs()
+Oid.update_forward_refs()
 
 
-positiveInt.update_forward_refs()
+PositiveInt.update_forward_refs()
 
 
-string.update_forward_refs()
+String.update_forward_refs()
 
 
-time.update_forward_refs()
+Time.update_forward_refs()
 
 
-unsignedInt.update_forward_refs()
+UnsignedInt.update_forward_refs()
 
 
-uri.update_forward_refs()
+Uri.update_forward_refs()
 
 
-url.update_forward_refs()
+Url.update_forward_refs()
 
 
-uuid.update_forward_refs()
+Uuid.update_forward_refs()
 
 
-xhtml.update_forward_refs()
+Xhtml.update_forward_refs()
 
 
 Address.update_forward_refs()
