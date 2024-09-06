@@ -5,7 +5,7 @@ authors = [{ name = "beda.software", email = "fhirpy@beda.software" }]
 description = "FHIR R4B pydantic models"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["pydantic >= 1.10.7, < 2"]
+dependencies = ["pydantic >= 2.9.0"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
