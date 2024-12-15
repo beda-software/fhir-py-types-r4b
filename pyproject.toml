@@ -1,6 +1,6 @@
 [project]
 name = "fhirpy_types_r4b"
-version = "0.1.1"
+version = "0.2.0a0"
 authors = [{ name = "beda.software", email = "fhirpy@beda.software" }]
 description = "FHIR R4B pydantic models"
 readme = "README.md"
